@@ -1,5 +1,6 @@
 use crate::error::QuatError;
 use std::fmt;
+use std::ops::{BitAnd, BitOr, BitXor, Not};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -52,5 +53,39 @@ impl From<Quat> for char {
 impl fmt::Display for Quat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", char::from(*self))
+    }
+}
+
+impl BitAnd for Quat {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        let val = (self as u8) & (rhs as u8);
+        // Safe because bitwise AND of 2-bit numbers always stays within 0..=3
+        unsafe { std::mem::transmute(val) }
+    }
+}
+
+impl BitOr for Quat {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        let val = (self as u8) | (rhs as u8);
+        unsafe { std::mem::transmute(val) }
+    }
+}
+
+impl BitXor for Quat {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        let val = (self as u8) ^ (rhs as u8);
+        unsafe { std::mem::transmute(val) }
+    }
+}
+
+impl Not for Quat {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        // Quaternary complement (bitwise NOT masked to 2 bits)
+        let val = (!(self as u8)) & 0b11;
+        unsafe { std::mem::transmute(val) }
     }
 }

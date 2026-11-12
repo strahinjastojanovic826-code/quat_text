@@ -9,6 +9,12 @@ pub struct QuatText {
     len: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QuatSlice<'a> {
+    data: &'a [u8],
+    len: usize,
+}
+
 impl QuatText {
     /// Creates a new, empty QuatText instance.
     pub fn new() -> Self {
@@ -55,6 +61,10 @@ impl QuatText {
         self.data[byte_index] &= !(0b11 << shift);
         self.data[byte_index] |= val << shift;
         Ok(())
+    }
+
+    pub fn as_slice(&self) -> QuatSlice<'_> {
+       QuatSlice::new(&self.data, self.len)
     }
 
     /// Retrieves a Quat at the specified index.
@@ -207,5 +217,30 @@ impl IntoIterator for QuatText {
             quat_text: self,
             index: 0,
         }
+    }
+}
+
+impl<'a> QuatSlice<'a> {
+    pub fn new(data: &'a [u8], len: usize) -> Self {
+        Self { data, len }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn get(&self, index: usize) -> Result<Quat, QuatError> {
+        if index >= self.len {
+            return Err(QuatError::IndexOutOfBounds { index, len: self.len });
+        }
+        let byte_index = index / 4;
+        let quat_index = index % 4;
+        let shift = (3 - quat_index) * 2;
+        let val = (self.data[byte_index] >> shift) & 0b11;
+        Quat::try_from(val)
     }
 }

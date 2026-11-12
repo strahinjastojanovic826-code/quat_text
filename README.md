@@ -12,6 +12,11 @@
 - **Robust Error Handling**: Clear custom errors (`QuatError`) for out-of-bound accesses, invalid bit patterns, and incorrect character parsing.
 - **Idiomatic Rust Traits**: Full support for `FromStr`, `TryFrom`, `Display`, `Iterator`, `IntoIterator`, `FromIterator`, and `Extend`.
 - **Modular Architecture**: Cleanly separated modules for quats, errors, text collection, and macros.
+- **Quaternary Logic Operations**: Native bitwise operations (`&`, `\|`, `^`, `!`) for quaternary states.
+- **Zero-Copy Slices (`QuatSlice`)**: Lightweight, heapless borrowed views for high-performance data processing.
+- **Bioinformatics Integration**: Direct mapping for DNA/RNA nucleotides (`A`, `C`, `G`, `T/U`) into quaternary values.
+- **SIMD-Optimized Utilities**: Fast vectorized pattern counting and text processing.
+- **Built-in Benchmarks**: Integrated execution time tracking across all test suites.
 
 ---
 
@@ -26,13 +31,38 @@ For commercial licensing, contact: **strahinjastojanovic826@gmail.com**
 
 ---
 
+## Benchmark
+
+# QuatText Library - Test & Benchmark Results (Debug Mode)
+
+| Test Name | Category / Description | Execution Time | Status |
+| :--- | :--- | :--- | :--- |
+| `test_01_empty_quat_text` | Basic State (Empty Collection) | 3.1 µs | OK |
+| `test_02_push_single_quat` | Basic State (Single Push) | 5.5 µs | OK |
+| `test_03_byte_boundary_packing` | Memory & Byte Boundaries | 900 ns | OK |
+| `test_04_from_str_parsing` | String Parsing (`FromStr`) | 6.6 µs | OK |
+| `test_05_display_formatting` | Formatting (`Display`) | 6.3 µs | OK |
+| `test_06_macro_usage` | Macro Expansion (`quat_text!`) | 1.6 µs | OK |
+| `test_07_iterators_and_collection` | Iterators & Collection | 2.3 µs | OK |
+| `test_08_invalid_character_error` | Error Handling (Invalid Char) | 1.7 µs | OK |
+| `test_09_index_out_of_bounds_error` | Error Handling (Out of Bounds) | 1.0 µs | OK |
+| `test_10_mutation_with_set` | Mutation (`set` operation) | 2.6 µs | OK |
+| `test_11_large_scale_stress_and_memory_efficiency` | Stress Test (1,000 items) | 58.7 µs | OK |
+| `test_12_complex_stressfull_bit_packing_and_mutations` | Complex Stress & Mutation | 5.3 µs | OK |
+| `test_bioinformatics_dna_mapping_with_benchmark` | Bioinformatics (DNA Mapping) | 300 ns | OK |
+| `test_quat_slice_zero_copy_with_benchmark` | Zero-copy View (`QuatSlice`) | 600 ns | OK |
+| `test_quaternary_logic_operations_with_benchmark` | Quaternary Logic Operations | 200 ns | OK |
+| `test_simd_pattern_counting_with_benchmark` | SIMD Pattern Search (10k items) | 318.8 µs | OK |
+
+---
+
 ## Installation
 
 Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-quat_text = "0.3.0"
+quat_text = "0.4.0"
 ```
 
 ---
@@ -111,3 +141,24 @@ let qt: QuatText = quats.into_iter().filter(|&q| q != Quat::V01).collect();
 
 assert_eq!(qt.len(), 2);
 ```
+
+### Advanced Features & Bioinformatics
+
+You can perform direct quaternary logic operations, use zero-copy slices, or map DNA/RNA sequences seamlessly:
+
+```rust
+use quat_text::{Quat, QuatText, QuatSlice};
+
+// 1. Quaternary logic operations
+let q1 = Quat::V01;
+let q2 = Quat::V10;
+let result_and = q1 & q2; // V00
+
+// 2. Zero-copy slices for high performance
+let qt = quat_text!("0123");
+let slice = QuatSlice::new(qt.as_bytes(), qt.len());
+assert_eq!(slice.get(3).unwrap(), Quat::V11);
+
+// 3. Bioinformatics: DNA/RNA nucleotide mapping
+let dna_base = Quat::from_dna('G').unwrap(); // Quat::V10
+assert_eq!(dna_base.to_dna(), 'G');
