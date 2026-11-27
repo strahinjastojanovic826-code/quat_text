@@ -5,6 +5,7 @@ pub enum QuatError {
     InvalidBitPattern(u8),
     InvalidCharacter(char),
     IndexOutOfBounds { index: usize, len: usize },
+    InvalidRawLength { len: usize, max_len: usize },
 }
 
 impl fmt::Display for QuatError {
@@ -23,6 +24,13 @@ impl fmt::Display for QuatError {
                     index, len
                 )
             }
+            QuatError::InvalidRawLength { len, max_len } => {
+    write!(
+        f,
+        "Invalid raw length {}: maximum allowed for underlying buffer is {}",
+        len, max_len
+    )
+}
         }
     }
 }

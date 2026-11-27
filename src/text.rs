@@ -5,13 +5,13 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuatText {
-    data: Vec<u8>,
+    pub data: Vec<u8>,
     len: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct QuatSlice<'a> {
-    data: &'a [u8],
+    pub data: &'a [u8],
     len: usize,
 }
 
@@ -105,6 +105,32 @@ impl QuatText {
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
     }
+
+    /// Returns a `QuatSlice` view over the entire text.
+#[must_use]
+pub fn as_quat_slice(&self) -> QuatSlice<'_> {
+    QuatSlice::new(&self.data, self.len)
+}
+
+/// Consumes `QuatText` and returns the underlying packed byte buffer.
+#[must_use]
+pub fn into_bytes(self) -> Vec<u8> {
+    self.data
+}
+
+/// Constructs a `QuatText` from raw packed bytes and a logical quat length.
+///
+/// # Errors
+/// Returns `QuatError::IndexOutOfBounds` if `len` exceeds `data.len() * 4`
+/// (reused here or replace with a dedicated variant in `error.rs` if preferred).
+pub fn from_raw_parts(data: Vec<u8>, len: usize) -> Result<Self, QuatError> {
+    let max_len = data.len().saturating_mul(4);
+    if len > max_len {
+        return Err(QuatError::IndexOutOfBounds { index: len, len: max_len });
+    }
+    Ok(Self { data, len })
+}
+
 }
 
 impl Default for QuatText {
@@ -242,5 +268,87 @@ impl<'a> QuatSlice<'a> {
         let shift = (3 - quat_index) * 2;
         let val = (self.data[byte_index] >> shift) & 0b11;
         Quat::try_from(val)
+    }
+
+    #[must_use]
+pub fn to_quat_text(&self) -> QuatText {
+    let byte_len = self.len.div_ceil(4);
+    QuatText {
+        data: self.data[..byte_len].to_vec(),
+        len: self.len,
+    }
+}
+
+#[must_use]
+pub fn iter(&self) -> QuatSliceIter<'a> {
+    QuatSliceIter {
+        slice: *self,
+        index: 0,
+    }
+}
+
+}
+
+pub struct QuatSliceIter<'a> {
+    slice: QuatSlice<'a>,
+    index: usize,
+}
+
+impl<'a> Iterator for QuatSliceIter<'a> {
+    type Item = Quat;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.slice.len() {
+            return None;
+        }
+        let item = self.slice.get(self.index).ok();
+        self.index += 1;
+        item
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let rem = self.slice.len() - self.index;
+        (rem, Some(rem))
+    }
+}
+
+impl<'a> ExactSizeIterator for QuatSliceIter<'a> {
+    fn len(&self) -> usize {
+        self.slice.len() - self.index
+    }
+}
+
+impl<'a> ExactSizeIterator for QuatIter<'a> {
+    fn len(&self) -> usize {
+        self.quat_text.len().saturating_sub(self.index)
+    }
+}
+
+impl<'a> DoubleEndedIterator for QuatIter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index >= self.quat_text.len() {
+            return None;
+        }
+        let end = self.quat_text.len() - 1;
+        let item = self.quat_text.get(end).ok();
+        // Track a separate `back_index` field in `QuatIter` if using bidirectional iteration in production
+        item
+    }
+}
+
+impl TryFrom<&str> for QuatText {
+    type Error = QuatError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl PartialEq<&str> for QuatText {
+    fn eq(&self, other: &&str) -> bool {
+        match Self::from_str(other) {
+            Ok(parsed) => self == &parsed,
+            Err(_) => false,
+        }
     }
 }

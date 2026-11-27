@@ -1,3 +1,15 @@
+//! Quaternary (`Quat`) representation and bitwise operations.
+//!
+//! # Safety (`unsafe` blocks)
+//! This module uses `unsafe { std::mem::transmute::<u8, Quat>(val) }` inside
+//! `BitAnd`, `BitOr`, `BitXor`, and `Not` implementations for `Quat`:
+//! - `Quat` is annotated with `#[repr(u8)]` and has exactly four valid
+//!   discriminants: `0b00` (`V00`), `0b01` (`V01`), `0b10` (`V10`), and
+//!   `0b11` (`V11`).
+//! - Every bitwise operation (`&`, `|`, `^`, and masked `! ... & 0b11`) over
+//!   two 2-bit values is guaranteed to produce a `u8` in `0..=3`, making
+//!   the transmute to `Quat` sound.
+
 use crate::error::QuatError;
 use std::fmt;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
@@ -87,5 +99,23 @@ impl Not for Quat {
         // Quaternary complement (bitwise NOT masked to 2 bits)
         let val = (!(self as u8)) & 0b11;
         unsafe { std::mem::transmute(val) }
+    }
+}
+
+impl std::ops::BitAndAssign for Quat {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = *self & rhs;
+    }
+}
+
+impl std::ops::BitOrAssign for Quat {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs;
+    }
+}
+
+impl std::ops::BitXorAssign for Quat {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = *self ^ rhs;
     }
 }

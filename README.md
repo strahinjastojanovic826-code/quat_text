@@ -17,6 +17,9 @@
 - **Bioinformatics Integration**: Direct mapping for DNA/RNA nucleotides (`A`, `C`, `G`, `T/U`) into quaternary values.
 - **SIMD-Optimized Utilities**: Fast vectorized pattern counting and text processing.
 - **Built-in Benchmarks**: Integrated execution time tracking across all test suites.
+- **Reverse Complement & Sequence Search**: Compute Watson-Crick complements, reverse complements (`to_reverse_complement`), RNA mappings (`to_rna`), and subsequence searches (`find_pattern`, `count_subsequence`) over packed sequences.
+- **Raw Byte Interop & Slice Conversions**: Convert seamlessly between owned `QuatText`, raw byte buffers (`into_bytes`, `from_raw_parts`), and `QuatSlice` views (`as_quat_slice`, `to_quat_text`, `iter`).
+- **Assignment Operators & String Equality**: Ergonomic in-place bitwise assignment (`&=`, `|=`, `^=`) on `Quat` as well as `PartialEq<&str>` comparisons on `QuatText`.
 
 ---
 
@@ -35,24 +38,28 @@ For commercial licensing, contact: **strahinjastojanovic826@gmail.com**
 
 # QuatText Library - Test & Benchmark Results (Debug Mode)
 
-| Test Name | Category / Description | Execution Time | Status |
-| :--- | :--- | :--- | :--- |
-| `test_01_empty_quat_text` | Basic State (Empty Collection) | 3.1 µs | OK |
-| `test_02_push_single_quat` | Basic State (Single Push) | 5.5 µs | OK |
-| `test_03_byte_boundary_packing` | Memory & Byte Boundaries | 900 ns | OK |
-| `test_04_from_str_parsing` | String Parsing (`FromStr`) | 6.6 µs | OK |
-| `test_05_display_formatting` | Formatting (`Display`) | 6.3 µs | OK |
-| `test_06_macro_usage` | Macro Expansion (`quat_text!`) | 1.6 µs | OK |
-| `test_07_iterators_and_collection` | Iterators & Collection | 2.3 µs | OK |
-| `test_08_invalid_character_error` | Error Handling (Invalid Char) | 1.7 µs | OK |
-| `test_09_index_out_of_bounds_error` | Error Handling (Out of Bounds) | 1.0 µs | OK |
-| `test_10_mutation_with_set` | Mutation (`set` operation) | 2.6 µs | OK |
-| `test_11_large_scale_stress_and_memory_efficiency` | Stress Test (1,000 items) | 58.7 µs | OK |
-| `test_12_complex_stressfull_bit_packing_and_mutations` | Complex Stress & Mutation | 5.3 µs | OK |
-| `test_bioinformatics_dna_mapping_with_benchmark` | Bioinformatics (DNA Mapping) | 300 ns | OK |
-| `test_quat_slice_zero_copy_with_benchmark` | Zero-copy View (`QuatSlice`) | 600 ns | OK |
-| `test_quaternary_logic_operations_with_benchmark` | Quaternary Logic Operations | 200 ns | OK |
-| `test_simd_pattern_counting_with_benchmark` | SIMD Pattern Search (10k items) | 318.8 µs | OK |
+| # | Test Name | Status | Measured Time | Scope & What Is Verified |
+| :-: | --- | :-: | :-: | --- |
+| 01 | `test_01_empty_quat_text` | `ok` | `3.1µs` | Empty `QuatText::new()` initialization (`is_empty() == true`, `len() == 0`) |
+| 02 | `test_02_push_single_quat` | `ok` | `5.3µs` | Pushing a single `Quat` (`len() == 1`, `is_empty() == false`, `get(0)`) |
+| 03 | `test_03_byte_boundary_packing` | `ok` | `600ns` | 4 quats per byte packing and rollover onto a 2nd byte on the 5th quat |
+| 04 | `test_04_from_str_parsing` | `ok` | `5.8µs` | Parsing `"0123"` via `FromStr` and verifying `V00..V11` values |
+| 05 | `test_05_display_formatting` | `ok` | `4.9µs` | Formatting `QuatText` via `Display` (`to_string() == "3021"`) |
+| 06 | `test_06_macro_usage` | `ok` | `1.5µs` | Ergonomic `quat_text!` macro usage with string and element list forms |
+| 07 | `test_07_iterators_and_collection` | `ok` | `2.5µs` | `FromIterator` (`collect()`), `Extend` (`extend()`), and `IntoIterator` |
+| 08 | `test_08_invalid_character_error` | `ok` | `700ns` | Error handling on invalid input (`"0143"` -> `QuatError::InvalidCharacter('4')`) |
+| 09 | `test_09_index_out_of_bounds_error` | `ok` | `1.1µs` | Out-of-range index error (`QuatError::IndexOutOfBounds { index: 5, len: 2 }`) |
+| 10 | `test_10_mutation_with_set` | `ok` | `2.7µs` | In-place mutation via `set(index, quat)` and `Display` verification |
+| 11 | `test_11_large_scale_stress_and_memory_efficiency` | `ok` | `49.8µs` | 1,000 quats packed into 250 bytes (75% savings) + iterator integrity check |
+| 12 | `test_12_complex_stressfull_bit_packing_and_mutations` | `ok` | `5.6µs` | Multi-byte mutations across bit shifts, `get()` checks, and `shrink_to_fit()` |
+| 13 | `test_quaternary_logic_operations_with_benchmark` | `ok` | `200ns` | Bitwise `Quat` logic (`&`, `\|`, `^`, and `!`) |
+| 14 | `test_quat_slice_zero_copy_with_benchmark` | `ok` | `700ns` | Zero-copy `QuatSlice` creation (`len()`, `is_empty()`, `get()`) |
+| 15 | `test_bioinformatics_dna_mapping_with_benchmark` | `ok` | `400ns` | DNA nucleotide mapping (`Quat::from_dna` for `A/C/G/T` and `Quat::to_dna`) |
+| 16 | `test_raw_parts_and_slice_conversions_with_benchmark` | `ok` | `2.6µs` | `into_bytes()`, `from_raw_parts()` (valid & invalid length), `as_quat_slice()`, `to_quat_text()`, `iter().len()` |
+| 17 | `test_str_conversions_and_assign_ops_with_benchmark` | `ok` | `2.2µs` | `TryFrom<&str>`, `PartialEq<&str>`, and `&=` / `\|=` / `^=` assignment ops |
+| 18 | `test_bio_ext_and_search_with_benchmark` | `ok` | `6µs` | `to_reverse_complement()`, `to_rna()`, `complement()`, `complement_in_place()`, `find_pattern()`, `count_subsequence()` |
+| 19 | `test_swar_boundaries_with_benchmark` | `ok` | `10.7µs` | 64-bit SWAR counting across lengths `0..=137` (`0, 1, 3, 4, 7, 8, 15, 31, 32, 33, 64, 65, 137`) |
+| 20 | `test_simd_pattern_counting_with_benchmark` | `ok` | `192µs` | SWAR pattern counting over 10,000 quats (`count_pattern_simd(Quat::V01) == 2500`) |
 
 ---
 
@@ -62,7 +69,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-quat_text = "0.4.0"
+quat_text = "0.5.0"
 ```
 
 ---
@@ -162,3 +169,25 @@ assert_eq!(slice.get(3).unwrap(), Quat::V11);
 // 3. Bioinformatics: DNA/RNA nucleotide mapping
 let dna_base = Quat::from_dna('G').unwrap(); // Quat::V10
 assert_eq!(dna_base.to_dna(), 'G');
+
+### SIMD Counting, Raw Buffers, and Reverse Complement
+
+```rust
+use quat_text::bio::QuatBioExt;
+use quat_text::{quat_text, Quat, QuatText};
+
+let mut seq = quat_text!("01230123");
+assert_eq!(seq.count_pattern_simd(Quat::V01), 2);
+
+let pat = quat_text!("23");
+assert_eq!(seq.find_pattern(&pat), Some(2));
+assert_eq!(seq.count_subsequence(&pat), 2);
+
+let rev_comp = seq.to_reverse_complement();
+assert_eq!(rev_comp.len(), 8);
+
+let len = seq.len();
+let raw = seq.into_bytes();
+let restored = QuatText::from_raw_parts(raw, len)?;
+assert_eq!(restored.len(), 8);
+# Ok::<(), quat_text::error::QuatError>(())

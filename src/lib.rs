@@ -14,6 +14,8 @@ mod tests {
     use super::*;
     use std::str::FromStr;
     use std::time::Instant;
+    use crate::bio::QuatBioExt;
+    use std::time::Duration;
 
     // ==========================================
     // 1. NAJLAKŠI TESTOVI (Osnovna stanja)
@@ -340,5 +342,111 @@ mod tests {
         let duration = start.elapsed();
         println!("[BENCHMARK] SIMD pattern counting (10,000 items) took: {:?}", duration);
     }
+
+    #[test]
+fn test_raw_parts_and_slice_conversions_with_benchmark() {
+    let start: Instant = Instant::now();
+
+    let qt = QuatText::from_str("012301").unwrap();
+    let raw = qt.clone().into_bytes();
+    let rebuilt = QuatText::from_raw_parts(raw.clone(), qt.len()).unwrap();
+    assert_eq!(rebuilt, qt);
+
+    let invalid = QuatText::from_raw_parts(vec![0u8; 1], 5).unwrap_err();
+    assert!(matches!(
+        invalid,
+        QuatError::IndexOutOfBounds { index: 5, len: 4 }
+    ));
+
+    let slice = qt.as_quat_slice();
+    let owned_again = slice.to_quat_text();
+    assert_eq!(owned_again, qt);
+    assert_eq!(slice.iter().len(), 6);
+
+    let duration: Duration = start.elapsed();
+    println!(
+        "[BENCHMARK] test_raw_parts_and_slice_conversions_with_benchmark took: {:?}",
+        duration
+    );
+}
+
+#[test]
+fn test_str_conversions_and_assign_ops_with_benchmark() {
+    let start: Instant = Instant::now();
+
+    let qt = QuatText::try_from("0123").unwrap();
+    assert!(qt == "0123");
+    assert!(qt != "0122");
+    assert!(qt != "invalid");
+
+    let mut q = Quat::V01;
+    q &= Quat::V11;
+    assert_eq!(q, Quat::V01);
+    q |= Quat::V10;
+    assert_eq!(q, Quat::V11);
+    q ^= Quat::V01;
+    assert_eq!(q, Quat::V10);
+
+    let duration: Duration = start.elapsed();
+    println!(
+        "[BENCHMARK] test_str_conversions_and_assign_ops_with_benchmark took: {:?}",
+        duration
+    );
+}
+
+#[test]
+fn test_bio_ext_and_search_with_benchmark() {
+    let start: Instant = Instant::now();
+
+    // A=00 (complement T=11), C=01 (complement G=10), G=10 (complement C=01), T=11 (complement A=00)
+    let dna = QuatText::from_str("01231").unwrap(); // len 5 (non-byte boundary)
+    let rev_comp = dna.to_reverse_complement();
+    assert_eq!(rev_comp.to_string(), "20123");
+    assert_eq!(Quat::V11.to_rna(), 'U');
+    assert_eq!(Quat::V01.complement(), Quat::V10);
+
+    let mut comp = dna.clone();
+    comp.complement_in_place();
+    assert_eq!(comp.to_string(), "32102");
+
+    let pat = QuatText::from_str("12").unwrap();
+    assert_eq!(dna.find_pattern(&pat), Some(1));
+    assert_eq!(dna.count_subsequence(&pat), 1);
+
+    let duration: Duration = start.elapsed();
+    println!(
+        "[BENCHMARK] test_bio_ext_and_search_with_benchmark took: {:?}",
+        duration
+    );
+}
+
+#[test]
+fn test_swar_boundaries_with_benchmark() {
+    let start: Instant = Instant::now();
+
+    for len in [0usize, 1, 3, 4, 7, 8, 15, 31, 32, 33, 64, 65, 137] {
+        let mut qt = QuatText::with_capacity(len);
+        let mut expected_v10 = 0usize;
+        for i in 0..len {
+            let q = match i % 4 {
+                0 => Quat::V00,
+                1 => Quat::V01,
+                2 => {
+                    expected_v10 += 1;
+                    Quat::V10
+                }
+                _ => Quat::V11,
+            };
+            qt.push(q);
+        }
+        assert_eq!(qt.count_pattern_simd(Quat::V10), expected_v10);
+    }
+
+    let duration: Duration = start.elapsed();
+    println!(
+        "[BENCHMARK] test_swar_boundaries_with_benchmark took: {:?}",
+        duration
+    );
+}
 
 }
